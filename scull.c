@@ -8,9 +8,12 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/cdev.h>
 
 #define MYCHRDEV_MAX_MINOR 4
 #define MYCHRDEV_CAPACITY 65536
+
+typedef struct cdev cdev_t;
 
 struct mychrdev_data
 {
@@ -22,11 +25,13 @@ struct mychrdev_data
 struct mychrdev_data *mydata[MYCHRDEV_MAX_MINOR];
 static atomic_t mychrdev_use_stats[MYCHRDEV_MAX_MINOR];
 static int mychrdev_major;
+cdev_t cdev;
+
 
 struct mychrdev_private
 {
         pid_t user_pid;
-        char user_name[TASK_COMM_LEN];
+        char user_dev_name[TASK_COMM_LEN];
         int minor;
         struct mychrdev_data *data;
 #define headptr data->headptr
@@ -103,7 +108,7 @@ int mychrdev_ioctl(struct file *file, unsigned int cmd, unsigned long argp)
         {
         case MYCHRDEV_IOCTL_GET_INFO:
                 a.user_pid = myprivate->user_pid;
-                memcpy(a.user_name, myprivate->user_name, strlen(myprivate->user_name));
+                memcpy(a.user_dev_name, myprivate->user_dev_name, strlen(myprivate->user_dev_name));
                 a.available_len = MYCHRDEV_CAPACITY - myprivate->tailptr;
                 a.len = myprivate->tailptr - myprivate->headptr;
                 a.offset_in_ppage = __pa(myprivate) & 0x00000fff;
@@ -168,7 +173,7 @@ int mychrdev_open(struct inode *inode, struct file *file)
         }
 
         myprivate->user_pid = current->pid;
-        sprintf(myprivate->user_name, "%s", current->comm);
+        sprintf(myprivate->user_dev_name, "%s", current->comm);
         myprivate->minor = minor;
         myprivate->data = mydata[minor];
         file->private_data = (void *)myprivate;
@@ -268,6 +273,8 @@ static int __init mychardev_init(void)
 {
         int i;
 
+        cdev = cdev_alloc();
+
         for (i = 0; i < MYCHRDEV_MAX_MINOR; i++)
         {
                 atomic_set(&mychrdev_use_stats[i], 0);
@@ -280,7 +287,7 @@ static int __init mychardev_init(void)
                 }
                 memset(mydata[i], 0, sizeof(struct mychrdev_data));
         }
-
+        cdev_alloc
         mychrdev_major = register_chrdev(0, "mychrdev", &mychrdev_fops);
         if (mychrdev_major <= 0)
         {
@@ -296,6 +303,21 @@ static void __exit mychardev_remove(void)
 {
         unregister_chrdev(mychrdev_major, NULL);
 }
+
+static int mychardev_setup_cdev(const char *dev_name)
+{
+        dev_t dev;
+        const unsigned int firstminor = 0, dev_count = 1;
+
+        alloc_chrdev_region(&dev, firstminor,dev_count,dev_name);
+        cdev_init(&cdev, &mychrdev_fops);
+        printk("dev:%d\n", dev);
+        cdev.owner = THIS_MODULE;
+     
+        
+
+}
+
 
 module_init(mychardev_init);
 module_exit(mychardev_remove);
