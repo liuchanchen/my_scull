@@ -306,13 +306,18 @@ static void __exit mychardev_remove(void)
 
 static int mychardev_setup_cdev(const char *dev_name)
 {
-        dev_t dev;
+        dev_t dev_no;
         const unsigned int firstminor = 0, dev_count = 1;
 
-        alloc_chrdev_region(&dev, firstminor,dev_count,dev_name);
-        cdev_init(&cdev, &mychrdev_fops);
-        printk("dev:%d\n", dev);
+        alloc_chrdev_region(&dev_no, firstminor,dev_count,dev_name);
+        // cdev_init(&cdev, &mychrdev_fops);
+        printk("dev:%d\n", dev_no);
         cdev.owner = THIS_MODULE;
+        if(cdev_add(&cdev, dev_no, 1) < 0)
+        {
+                printk()          
+                return -1;  
+        }
      
         
 
