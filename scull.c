@@ -12,6 +12,7 @@
 
 #define MYCHRDEV_MAX_MINOR 4
 #define MYCHRDEV_CAPACITY 65536
+#define DEV_NAME "mychardev"
 
 typedef struct cdev cdev_t;
 
@@ -25,7 +26,7 @@ struct mychrdev_data
 struct mychrdev_data *mydata[MYCHRDEV_MAX_MINOR];
 static atomic_t mychrdev_use_stats[MYCHRDEV_MAX_MINOR];
 static int mychrdev_major;
-cdev_t cdev;
+cdev_t *cdev;
 
 
 struct mychrdev_private
@@ -38,6 +39,8 @@ struct mychrdev_private
 #define tailptr data->tailptr
 #define buffer data->buf
 };
+
+static int mychardev_setup_cdev(const char *dev_name);
 
 ssize_t mychrdev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
@@ -274,6 +277,8 @@ static int __init mychardev_init(void)
         int i;
 
         cdev = cdev_alloc();
+	mychardev_setup_cdev(DEV_NAME);
+#if 0
 
         for (i = 0; i < MYCHRDEV_MAX_MINOR; i++)
         {
@@ -295,7 +300,7 @@ static int __init mychardev_init(void)
                 return -1;
         }
         printk("char device mychrdev is registered, major is %d\n", mychrdev_major);
-
+#endif
         return 0;
 }
 
@@ -312,10 +317,10 @@ static int mychardev_setup_cdev(const char *dev_name)
         alloc_chrdev_region(&dev_no, firstminor,dev_count,dev_name);
         // cdev_init(&cdev, &mychrdev_fops);
         printk("dev:%d\n", dev_no);
-        cdev.owner = THIS_MODULE;
-        if(cdev_add(&cdev, dev_no, 1) < 0)
+        cdev->owner = THIS_MODULE;
+        if(cdev_add(cdev, dev_no, 1) < 0)
         {
-                printk()          
+                printk("cdev_add error");         
                 return -1;  
         }
      
